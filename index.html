@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LGS Puan Hesaplayıcı V3</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background-color: #f0f0f0;
+        color: #333;
+        padding: 20px;
+        transition: background 0.3s, color 0.3s;
+      }
+      .dark-mode {
+        background-color: #1e1e1e;
+        color: #f5f5f5;
+      }
+      h1 {
+        text-align: center;
+      }
+      .ders {
+        margin-bottom: 10px;
+      }
+      label {
+        display: inline-block;
+        width: 150px;
+      }
+      input {
+        width: 50px;
+      }
+      button {
+        padding: 10px 20px;
+        margin-top: 10px;
+        cursor: pointer;
+      }
+      #grafik {
+        width: 100%;
+        height: 200px;
+        margin-top: 20px;
+      }
+      #sonuc,
+      #netler,
+      #hata,
+      #yorum {
+        margin-top: 20px;
+        font-size: 18px;
+      }
+      #yorum {
+        font-style: italic;
+      }
+      #toggleMode {
+        float: right;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="toggleMode">🌓 Gece Modu</button>
+    <h1>⚓ LGS Puan Hesaplayıcı V3</h1>
+
+    <div class="ders">
+      <label>Türkçe:</label> Doğru:
+      <input type="number" id="turkce_d" /> Yanlış:
+      <input type="number" id="turkce_y" />
+    </div>
+    <div class="ders">
+      <label>Matematik:</label> Doğru:
+      <input type="number" id="mat_d" /> Yanlış:
+      <input type="number" id="mat_y" />
+    </div>
+    <div class="ders">
+      <label>Fen Bilimleri:</label> Doğru:
+      <input type="number" id="fen_d" /> Yanlış:
+      <input type="number" id="fen_y" />
+    </div>
+    <div class="ders">
+      <label>İnkılap Tarihi:</label> Doğru:
+      <input type="number" id="ink_d" /> Yanlış:
+      <input type="number" id="ink_y" />
+    </div>
+    <div class="ders">
+      <label>Din Kültürü:</label> Doğru:
+      <input type="number" id="din_d" /> Yanlış:
+      <input type="number" id="din_y" />
+    </div>
+    <div class="ders">
+      <label>İngilizce:</label> Doğru:
+      <input type="number" id="ing_d" /> Yanlış:
+      <input type="number" id="ing_y" />
+    </div>
+
+    <button onclick="hesapla()">📌 PUANI HESAPLA</button>
+
+    <div id="hata"></div>
+    <div id="netler"></div>
+    <div id="sonuc"></div>
+    <div id="yorum"></div>
+    <canvas id="grafik"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      const dersler = [
+        { id: "turkce", soru: 20, katsayi: 4 },
+        { id: "mat", soru: 20, katsayi: 4 },
+        { id: "fen", soru: 20, katsayi: 4 },
+        { id: "ink", soru: 10, katsayi: 1 },
+        { id: "din", soru: 10, katsayi: 1 },
+        { id: "ing", soru: 10, katsayi: 1 },
+      ];
+
+      function hesapla() {
+        let toplamHam = 0;
+        let hataMesaji = "";
+        let netBilgisi = "";
+        let netler = [];
+
+        for (let ders of dersler) {
+          const d = +document.getElementById(`${ders.id}_d`).value || 0;
+          const y = +document.getElementById(`${ders.id}_y`).value || 0;
+
+          if (d + y > ders.soru) {
+            hataMesaji += `⚠ ${ders.id.toUpperCase()} için toplam giriş ${
+              ders.soru
+            }'yi geçemez!<br>`;
+          }
+
+          const net = d - y / 3;
+          netler.push({ ad: ders.id.toUpperCase(), net: net });
+          netBilgisi += `${ders.id.toUpperCase()} net: ${net.toFixed(2)}<br>`;
+          toplamHam += net * ders.katsayi;
+        }
+
+        const tahminiPuan = Math.round((toplamHam / 270) * 500);
+
+        localStorage.setItem("puan", tahminiPuan);
+        localStorage.setItem("netler", JSON.stringify(netler));
+
+        document.getElementById("hata").innerHTML = hataMesaji;
+        document.getElementById("netler").innerHTML = hataMesaji
+          ? ""
+          : netBilgisi;
+        document.getElementById("sonuc").innerHTML = hataMesaji
+          ? ""
+          : `🔥 Tahmini LGS Puanı: <strong>${tahminiPuan}</strong>`;
+        document.getElementById("yorum").innerHTML = hataMesaji
+          ? ""
+          : yorumVer(tahminiPuan);
+
+        if (!hataMesaji) cizGrafik(tahminiPuan);
+      }
+
+      function yorumVer(puan) {
+        if (puan >= 450) return "🚀 Harika! Zirvedesin!";
+        else if (puan >= 400) return "✨ Çok iyi gidiyorsun!";
+        else if (puan >= 300) return "📈 Gelişiyorsun, az kaldı!";
+        else return "🛠 Daha çok çalışman gerek! Hadi devam!";
+      }
+
+      function cizGrafik(puan) {
+        const ctx = document.getElementById("grafik").getContext("2d");
+        if (window.grafik) window.grafik.destroy();
+        window.grafik = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: ["Senin Puanın", "Maksimum Puan"],
+            datasets: [
+              {
+                label: "Puan Karşılaştırması",
+                data: [puan, 500],
+                backgroundColor: ["#4caf50", "#ddd"],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true, max: 500 } },
+          },
+        });
+      }
+
+      document.getElementById("toggleMode").onclick = function () {
+        document.body.classList.toggle("dark-mode");
+      };
+
+      window.onload = function () {
+        const puan = localStorage.getItem("puan");
+        const netler = JSON.parse(localStorage.getItem("netler")) || [];
+
+        if (puan) {
+          document.getElementById(
+            "sonuc"
+          ).innerHTML = `🔥 Tahmini LGS Puanı: <strong>${puan}</strong>`;
+          document.getElementById("yorum").innerHTML = yorumVer(+puan);
+          let netText = "";
+          netler.forEach((n) => {
+            netText += `${n.ad} net: ${n.net.toFixed(2)}<br>`;
+          });
+          document.getElementById("netler").innerHTML = netText;
+          cizGrafik(+puan);
+        }
+      };
+    </script>
+  </body>
+</html>
